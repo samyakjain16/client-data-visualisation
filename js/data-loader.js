@@ -38,8 +38,12 @@ class DataLoader {
         }
     }
 
-    // Load CSV data for a specific year
+    // Load data for specific year or all years
     async loadYearData(year) {
+        if (year === 'all') {
+            return await this.loadAllYearsData();
+        }
+        
         if (this.cache.has(year)) {
             return this.cache.get(year);
         }
@@ -52,7 +56,7 @@ class DataLoader {
 
             const csvText = await response.text();
             const parsed = await this.parseCSV(csvText);
-            const processed = await this.processData(parsed);
+            const processed = await this.processData(parsed, year);
             
             this.cache.set(year, processed);
             return processed;
@@ -60,6 +64,43 @@ class DataLoader {
             console.error(`Error loading data for ${year}:`, error);
             throw error;
         }
+    }
+
+    // Load and combine all years data
+    async loadAllYearsData() {
+        const years = ['2022', '2023', '2024', '2025'];
+        const allData = {
+            combined: [],
+            byYear: {}
+        };
+
+        const loadPromises = years.map(async (year) => {
+            try {
+                const yearData = await this.loadYearData(year);
+                allData.byYear[year] = yearData;
+                // Add year property to each record for combined data
+                const dataWithYear = yearData.map(record => ({...record, year: year}));
+                allData.combined.push(...dataWithYear);
+                return { year, data: yearData, success: true };
+            } catch (error) {
+                console.warn(`Failed to load ${year}:`, error.message);
+                allData.byYear[year] = [];
+                return { year, data: [], success: false, error: error.message };
+            }
+        });
+
+        const results = await Promise.all(loadPromises);
+        
+        // Log loading results
+        const successful = results.filter(r => r.success).length;
+        const failed = results.filter(r => !r.success);
+        
+        console.log(`Loaded ${successful}/${years.length} years successfully`);
+        if (failed.length > 0) {
+            console.warn('Failed to load:', failed.map(f => `${f.year}: ${f.error}`));
+        }
+
+        return allData;
     }
 
     // Parse CSV using PapaParse
@@ -82,7 +123,7 @@ class DataLoader {
     }
 
     // Process and clean the raw CSV data
-    async processData(rawData) {
+    async processData(rawData, year = null) {
         const cleanedData = rawData
             .filter(row => row.Name && row.Name.trim())
             .map(row => {
@@ -103,7 +144,8 @@ class DataLoader {
                     hasClientLocation: hasClientAddress,
                     hasPropertyLocation: hasPropertyAddress,
                     // Determine map display status
-                    mapDisplayType: this.determineMapDisplayType(hasClientAddress, hasPropertyAddress)
+                    mapDisplayType: this.determineMapDisplayType(hasClientAddress, hasPropertyAddress),
+                    year: year // Add year information
                 };
             });
 

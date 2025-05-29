@@ -134,7 +134,7 @@ class Dashboard {
         }
     }
 
-    // Load data for specific year
+    // Load data for specific year or all years
     async loadYear(year) {
         if (this.isLoading) return;
         
@@ -152,7 +152,11 @@ class Dashboard {
             this.currentData = data;
             
             // Generate analytics
-            this.currentAnalytics = window.dataLoader.generateAnalytics(data);
+            if (year === 'all') {
+                this.currentAnalytics = window.dataLoader.generateAnalytics(data.combined);
+            } else {
+                this.currentAnalytics = window.dataLoader.generateAnalytics(data);
+            }
             
             // Update UI
             this.updateDashboard(data, this.currentAnalytics);
@@ -206,16 +210,17 @@ class Dashboard {
         // Update insights
         window.chartsManager.updateInsights(analytics.insights);
         
-        // Update data table
+        // Update data table (handles both single year and combined data)
         window.chartsManager.updateDataTable(data);
         
-        // Update map
+        // Update map (handles both single year and multi-year)
         if (window.mapsManager) {
             window.mapsManager.updateMap(data);
         }
 
         // Update page title
-        document.title = `Client Property Dashboard - ${this.currentYear}`;
+        const yearText = this.currentYear === 'all' ? 'All Years' : this.currentYear;
+        document.title = `Client Property Dashboard - ${yearText}`;
     }
 
     // Show loading state

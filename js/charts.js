@@ -255,18 +255,21 @@ class ChartsManager {
 
         tbody.innerHTML = '';
 
-        if (data.length === 0) {
+        // Handle both single year data and combined data
+        const tableData = data.combined ? data.combined : data;
+
+        if (!tableData || tableData.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                        No data available for the selected year.
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                        No data available for the selected year(s).
                     </td>
                 </tr>
             `;
             return;
         }
 
-        data.forEach(row => {
+        tableData.forEach(row => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-gray-50 transition-colors';
             tr.innerHTML = `
@@ -311,6 +314,13 @@ class ChartsManager {
                         '<span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">? Unknown</span>'
                     }
                 </td>
+                <td class="px-4 py-3 text-sm text-center">
+                    ${row.year ? `
+                        <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">${row.year}</span>
+                    ` : `
+                        <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">N/A</span>
+                    `}
+                </td>
             `;
             tbody.appendChild(tr);
         });
@@ -333,21 +343,25 @@ class ChartsManager {
 
     // Export data as CSV
     exportData(data, year) {
-        const headers = ['Name', 'Client Address', 'Client State', 'Property Address', 'Property State', 'Service Type', 'Interstate', 'Date Signed', 'Date of Purchase', 'Email'];
+        const headers = ['Name', 'Client Address', 'Client State', 'Property Address', 'Property State', 'Service Type', 'Interstate', 'Date Signed', 'Date of Purchase', 'Email', 'Year'];
+        
+        // Handle both single year data and combined data
+        const exportData = data.combined ? data.combined : data;
         
         const csvData = [
             headers,
-            ...data.map(row => [
+            ...exportData.map(row => [
                 row.name,
-                row.clientAddress,
-                row.clientState,
+                row.clientAddress || '',
+                row.clientState || '',
                 row.propertyAddress || '',
                 row.propertyState || '',
                 row.serviceType,
                 row.isInterstate ? 'Yes' : 'No',
                 row.dateSigned,
                 row.datePurchase,
-                row.email
+                row.email,
+                row.year || year
             ])
         ];
 
@@ -358,7 +372,9 @@ class ChartsManager {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `client-data-${year}.csv`;
+        
+        const filename = year === 'all' ? 'client-data-all-years.csv' : `client-data-${year}.csv`;
+        link.download = filename;
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
